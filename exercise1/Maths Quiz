@@ -1,0 +1,268 @@
+import tkinter as tk
+from tkinter import messagebox
+import random
+
+current_white_page = None
+book_container = None
+current_score = 0
+current_attempts = 0
+current_correct_answer = None
+current_difficulty = "EASY"
+performance_stats = {"first_try": 0, "second_try": 0, "third_try": 0}
+
+root = tk.Tk()
+root.title("Maths Quiz Game")
+root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")
+root.config(bg="#795548")
+
+notebook_width = 400
+notebook_height = 500
+
+
+def create_spiral_holes(frame):
+    canvas = tk.Canvas(frame, bg="#696969", width=16, height=notebook_height, highlightthickness=0)
+    canvas.place(x=0, y=0)
+    for y in range(20, notebook_height, 20):
+        canvas.create_oval(4, y-4, 12, y+4, fill="#2F4F4F", outline="")
+
+
+backpage_frame = tk.Frame(root, bg="#A62D2D", width=notebook_width+16, height=notebook_height)
+backpage_frame.place(relx=0.505, rely=0.501, anchor="center")
+
+pages_frame = tk.Frame(root, bg="#FFFFFF", width=notebook_width+8, height=notebook_height-4)
+pages_frame.place(relx=0.5025, rely=0.50, anchor="center")
+
+notebook_frame = tk.Frame(root, bg="#A62D2D", width=notebook_width, height=notebook_height)
+notebook_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+spiral_frame = tk.Frame(notebook_frame, bg="#696969", width=16, height=notebook_height)
+spiral_frame.place(x=0, y=0)
+create_spiral_holes(spiral_frame)
+
+
+def clear_frame(frame):
+    for widget in frame.winfo_children():
+        widget.destroy()
+
+
+def update_label(frame, keyword, text):
+    for widget in frame.winfo_children():
+        if isinstance(widget, tk.Label) and keyword in widget.cget("text"):
+            widget.config(text=text)
+            break
+
+
+def decideOperation():
+    return random.choice(['+', '-'])
+
+
+def randomInt(difficulty):
+    if difficulty == "EASY":
+        return random.randint(1, 9)
+    elif difficulty == "MODERATE":
+        return random.randint(10, 99)
+    else:
+        return random.randint(1000, 9999)
+
+
+def displayMenu(page):
+    clear_frame(page)
+    canvas = tk.Canvas(page, bg="#FFFFFF", width=notebook_width, height=notebook_height, highlightthickness=0)
+    canvas.place(x=0, y=0)
+    for y in range(60, notebook_height, 20):
+        canvas.create_line(50, y, notebook_width - 20, y, fill="#E0E0E0", width=1)
+    canvas.create_line(40, 0, 40, notebook_height, fill="#FF6B6B", width=2)
+
+    tk.Label(page, text="Select Difficulty", bg="#FFFFFF", fg="#5D4037",
+             font=("Arial", 20, "bold")).place(relx=0.5, rely=0.15, anchor="center")
+
+    buttons = [
+        ("1. Easy", "#E8F5E8", "#2E7D32", "EASY"),
+        ("2. Moderate", "#FFF3E0", "#EF6C00", "MODERATE"),
+        ("3. Advanced", "#FFEBEE", "#C62828", "ADVANCED")
+    ]
+    for i, (text, bg, fg, diff) in enumerate(buttons):
+        tk.Button(page, text=text, bg=bg, fg=fg, font=("Arial", 16), width=16,
+                  command=lambda d=diff: start_quiz(d)).place(relx=0.5, rely=0.35 + i*0.1, anchor="center")
+
+
+def isCorrect(user_input, correct_answer, attempts, result_label, page, difficulty, question_num):
+    global current_score, performance_stats
+    if not user_input.strip().isdigit():
+        result_label.config(text="Enter a valid number!", fg="red")
+        return False
+
+    user_ans = int(user_input)
+
+    if user_ans == correct_answer:
+        points = 10 if attempts == 1 else 5
+        current_score += points
+        if attempts == 1:
+            performance_stats["first_try"] += 1
+        elif attempts == 2:
+            performance_stats["second_try"] += 1
+
+        update_label(page, "Score", f"Score: {current_score}/100")
+        result_label.config(text=f"Correct! +{points} points", fg="green")
+        return True
+    return False
+
+
+def displayResults(page):
+    clear_frame(page)
+
+    grade = "F"
+    msg = "Keep practicing!"
+    if current_score >= 90:
+        grade, msg = "A+", "Outstanding!"
+    elif current_score >= 80:
+        grade, msg = "A", "Excellent!"
+    elif current_score >= 70:
+        grade, msg = "B", "Great Job!"
+    elif current_score >= 60:
+        grade, msg = "C", "Good Effort"
+
+    tk.Label(page, text="Quiz Completed!", bg="#FFFFFF", fg="#5D4037",
+             font=("Arial", 20, "bold")).place(relx=0.5, rely=0.15, anchor="center")
+    tk.Label(page, text=f"Final Score: {current_score}/100", bg="#FFFFFF", fg="#5D4037",
+             font=("Arial", 18, "bold")).place(relx=0.5, rely=0.25, anchor="center")
+    tk.Label(page, text=f"Rank: {grade}", bg="#FFFFFF",
+             fg="#2E7D32" if current_score >= 60 else "#D32F2F",
+             font=("Arial", 32, "bold")).place(relx=0.5, rely=0.4, anchor="center")
+    tk.Label(page, text=msg, bg="#FFFFFF", fg="#5D4037",
+             font=("Arial", 14)).place(relx=0.5, rely=0.5, anchor="center")
+
+    stats_text = (
+        f"1st Try Correct: {performance_stats['first_try']}\n"
+        f"2nd Try Correct: {performance_stats['second_try']}\n"
+        f"Skipped/Wrong: {performance_stats['third_try']}"
+    )
+    tk.Label(page, text=stats_text, bg="#FFFFFF",
+             fg="#5D4037", font=("Arial", 12), justify="left").place(relx=0.5, rely=0.65, anchor="center")
+
+    tk.Button(page, text="Play Again", bg="#4CAF50", fg="white", font=("Arial", 14),
+              command=lambda: displayMenu(page)).place(relx=0.5, rely=0.8, anchor="center")
+
+
+def displayProblem(page, difficulty, question_num):
+    global current_attempts, current_correct_answer
+    if question_num > 10:
+        displayResults(page)
+        return
+
+    current_attempts = 0
+
+    num1 = randomInt(difficulty)
+    num2 = randomInt(difficulty)
+    operation = decideOperation()
+
+    if operation == '-' and num1 < num2:
+        num1, num2 = num2, num1
+
+    current_correct_answer = num1 + num2 if operation == '+' else num1 - num2
+    problem_text = f"{num1} {operation} {num2} ="
+
+    for widget in page.winfo_children():
+        if isinstance(widget, (tk.Label, tk.Entry, tk.Button)):
+            text = widget.cget("text") if hasattr(widget, "cget") else ""
+            if "Quiz" not in text and "Score" not in text and "Question" not in text:
+                widget.destroy()
+
+    update_label(page, "Question", f"Question {question_num} of 10")
+
+    tk.Label(page, text=problem_text, bg="#FFFFFF", fg="#5D4037",
+             font=("Arial", 24, "bold")).place(relx=0.5, rely=0.4, anchor="center")
+
+    attempts_lbl = tk.Label(page, text="Attempt: 1", bg="#FFFFFF",
+                            fg="#5D4037", font=("Arial", 12))
+    attempts_lbl.place(relx=0.5, rely=0.3, anchor="center")
+
+    entry = tk.Entry(page, bg="#FFFFFF", fg="#5D4037",
+                     font=("Arial", 14), width=10, justify="center")
+    entry.place(relx=0.5, rely=0.5, anchor="center")
+    entry.focus()
+
+    result_lbl = tk.Label(page, text="", bg="#FFFFFF",
+                          fg="#5D4037", font=("Arial", 14))
+    result_lbl.place(relx=0.5, rely=0.7, anchor="center")
+
+    def handle_submit():
+        global current_attempts
+        current_attempts += 1
+        correct = isCorrect(entry.get(), current_correct_answer,
+                            current_attempts, result_lbl, page, difficulty, question_num)
+
+        if correct:
+            entry.config(state="disabled")
+            submit_btn.config(state="disabled")
+            page.after(1000, lambda: displayProblem(page, difficulty, question_num + 1))
+
+        else:
+            if current_attempts >= 2:
+                result_lbl.config(text=f"Wrong! Answer: {current_correct_answer}", fg="red")
+                performance_stats["third_try"] += 1
+                entry.config(state="disabled")
+                submit_btn.config(state="disabled")
+                page.after(1500, lambda: displayProblem(page, difficulty, question_num + 1))
+            else:
+                result_lbl.config(text="Wrong! Try again.", fg="orange")
+                attempts_lbl.config(text="Attempt: 2")
+                entry.delete(0, tk.END)
+
+    submit_btn = tk.Button(page, text="Submit", bg="#4CAF50", fg="white",
+                           font=("Arial", 14), command=handle_submit)
+    submit_btn.place(relx=0.5, rely=0.6, anchor="center")
+    entry.bind('<Return>', lambda e: handle_submit())
+
+
+def start_quiz(difficulty):
+    global current_score, performance_stats
+    current_score = 0
+    performance_stats = {"first_try": 0, "second_try": 0, "third_try": 0}
+
+    clear_frame(current_white_page)
+    tk.Label(current_white_page, text=f"{difficulty} Quiz", bg="#FFFFFF",
+             fg="#5D4037", font=("Arial", 20, "bold")).place(relx=0.5, rely=0.1, anchor="center")
+    tk.Label(current_white_page, text="Question 1 of 10", bg="#FFFFFF",
+             fg="#5D4037", font=("Arial", 14)).place(relx=0.5, rely=0.2, anchor="center")
+    tk.Label(current_white_page, text="Score: 0/100", bg="#FFFFFF",
+             fg="#5D4037", font=("Arial", 14)).place(relx=0.5, rely=0.25, anchor="center")
+
+    displayProblem(current_white_page, difficulty, 1)
+
+
+def open_notebook():
+    notebook_frame.place_forget()
+    pages_frame.place_forget()
+    backpage_frame.place_forget()
+
+    global current_white_page, book_container
+
+    book_container = tk.Frame(root, bg="#795548")
+    book_container.place(relx=0.5, rely=0.5, anchor="center")
+
+    red_page = tk.Frame(book_container, bg="#A62D2D",
+                        width=notebook_width, height=notebook_height)
+    red_page.pack(side=tk.LEFT)
+    red_page.pack_propagate(False)
+
+    current_white_page = tk.Frame(book_container, bg="#FFFFFF",
+                                  width=notebook_width, height=notebook_height)
+    current_white_page.pack(side=tk.LEFT)
+    current_white_page.pack_propagate(False)
+
+    displayMenu(current_white_page)
+
+
+tk.Label(notebook_frame, text="MATHS NOTEBOOK", bg="#A62D2D",
+         fg="#FFFFFF", font=("Arial", 24, "bold")).place(relx=0.5, rely=0.3, anchor="center")
+
+tk.Label(notebook_frame, text="Mathematics Practice Quiz", bg="#A62D2D",
+         fg="#FFFFFF", font=("Arial", 16)).place(relx=0.5, rely=0.4, anchor="center")
+
+tk.Button(notebook_frame, text="Start Quiz", bg="#F0F0F0", fg="#A62D2D",
+          font=("Arial", 16), width=16, command=open_notebook).place(relx=0.5, rely=0.6, anchor="center")
+
+root.bind('<Escape>', lambda e: root.attributes('-fullscreen', False))
+
+root.mainloop()
