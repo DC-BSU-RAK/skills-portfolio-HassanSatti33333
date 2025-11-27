@@ -1,15 +1,20 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import os
+from PIL import Image, ImageTk  
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
 FILE_NAME = os.path.join(
     script_dir,
     "..",
     "Assessment 1 - Skills Portfolio",
     "A1 - Resources",
     "studentMarks.txt",
-) #I asked ChatGPT to help me make the path work on my computer because for some reason it wasnt working 
+)
+
+LOGO_FILE = os.path.join(script_dir, "bsu-logo.png")
+
 
 class StudentManagerApp:
     def __init__(self, root):
@@ -19,10 +24,15 @@ class StudentManagerApp:
         self.dark_mode = False
         self.students = []
         self.sidebar_buttons = []
+        
+        self.header_logo_image = None 
+        self.icon_image = None 
 
         self.center_window(1100, 650)
         self.root.configure(bg="#ecf0f1")
 
+        self.load_resources()
+        
         self.create_layout()
         self.load_data()
         self.view_all_students()
@@ -35,6 +45,35 @@ class StudentManagerApp:
         x = (sw // 2) - (width // 2)
         y = (sh // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
+
+    def load_resources(self):
+        """Loads images once to be reused across all windows."""
+        try:
+            if os.path.exists(LOGO_FILE):
+               
+                pil_image = Image.open(LOGO_FILE)
+                
+               
+                self.icon_image = ImageTk.PhotoImage(pil_image)
+                self.set_window_icon(self.root)
+
+                
+                base_height = 100
+                w_percent = (base_height / float(pil_image.size[1]))
+                w_size = int((float(pil_image.size[0]) * float(w_percent)))
+                
+                resized_pil = pil_image.resize((w_size, base_height), Image.LANCZOS)
+                self.header_logo_image = ImageTk.PhotoImage(resized_pil)
+                
+            else:
+                print(f"Logo not found at: {LOGO_FILE}")
+        except Exception as e:
+            print(f"Error loading logo: {e}")
+
+    def set_window_icon(self, window):
+        """Helper to apply the logo to any window passed to it."""
+        if self.icon_image:
+            window.iconphoto(False, self.icon_image)
 
     def calculate_results(self, cw1, cw2, cw3, exam):
         total = cw1 + cw2 + cw3 + exam
@@ -55,7 +94,7 @@ class StudentManagerApp:
         self.students = []
         try:
             if not os.path.exists(FILE_NAME):
-                messagebox.showerror("Error", f"File not found:\n{FILE_NAME}")
+                print(f"File not found: {FILE_NAME}. Starting with empty list.")
                 return
             with open(FILE_NAME, "r") as f:
                 lines = f.readlines()
@@ -98,10 +137,13 @@ class StudentManagerApp:
     def create_sidebar_button(self, parent, text, command, btn_style):
         btn = tk.Button(parent, text=text, command=command, **btn_style)
         btn.pack(pady=2)
+
         def on_enter(e):
             e.widget["bg"] = "#1abc9c"
+
         def on_leave(e):
             e.widget["bg"] = btn_style["bg"]
+
         btn.bind("<Enter>", on_enter)
         btn.bind("<Leave>", on_leave)
         self.sidebar_buttons.append(btn)
@@ -131,46 +173,86 @@ class StudentManagerApp:
             "cursor": "hand2",
         }
 
-        self.create_sidebar_button(self.control_frame, "1. View All Records", self.view_all_students, btn_style)
-        self.create_sidebar_button(self.control_frame, "2. View Individual", self.find_student, btn_style)
-        self.create_sidebar_button(self.control_frame, "3. Highest Score", self.show_highest, btn_style)
-        self.create_sidebar_button(self.control_frame, "4. Lowest Score", self.show_lowest, btn_style)
+        self.create_sidebar_button(
+            self.control_frame, "1. View All Records", self.view_all_students, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "2. View Individual", self.find_student, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "3. Highest Score", self.show_highest, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "4. Lowest Score", self.show_lowest, btn_style
+        )
 
-        tk.Frame(self.control_frame, height=2, bg="#7f8c8d").pack(fill=tk.X, padx=20, pady=10)
+        tk.Frame(self.control_frame, height=2, bg="#7f8c8d").pack(
+            fill=tk.X, padx=20, pady=10
+        )
 
-        self.create_sidebar_button(self.control_frame, "5. Sort Records", self.sort_menu, btn_style)
-        self.create_sidebar_button(self.control_frame, "6. Add Record", self.add_student_dialog, btn_style)
-        self.create_sidebar_button(self.control_frame, "7. Delete Record", self.delete_student, btn_style)
-        self.create_sidebar_button(self.control_frame, "8. Update Record", self.update_student_dialog, btn_style)
-        self.create_sidebar_button(self.control_frame, "Toggle Dark Mode", self.toggle_theme, btn_style)
+        self.create_sidebar_button(
+            self.control_frame, "5. Sort Records", self.sort_menu, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "6. Add Record", self.add_student_dialog, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "7. Delete Record", self.delete_student, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "8. Update Record", self.update_student_dialog, btn_style
+        )
+        self.create_sidebar_button(
+            self.control_frame, "Toggle Dark Mode", self.toggle_theme, btn_style
+        )
 
         self.content_frame = tk.Frame(self.root, bg="#ecf0f1")
-        self.content_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20)
+        self.content_frame.pack(
+            side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=20, pady=20
+        )
+
+        self.top_header_frame = tk.Frame(self.content_frame, bg="#ecf0f1")
+        self.top_header_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10))
 
         self.header_label = tk.Label(
-            self.content_frame,
+            self.top_header_frame,
             text="All Student Records",
             font=("Segoe UI", 18, "bold"),
             bg="#ecf0f1",
             fg="#2c3e50",
         )
-        self.header_label.pack(anchor="w", pady=(0, 10))
+        self.header_label.pack(side=tk.LEFT, anchor="w")
+
+        self.logo_label = tk.Label(self.top_header_frame, bg="#ecf0f1")
+        
+        self.logo_label.pack(side=tk.RIGHT, anchor="e", padx=(0, 40))
+        
+        if self.header_logo_image:
+            self.logo_label.config(image=self.header_logo_image)
 
         self.search_var = tk.StringVar()
         self.search_frame = tk.Frame(self.content_frame, bg="#ecf0f1")
         self.search_frame.pack(anchor="e", pady=(0, 10), fill=tk.X)
 
         self.search_label = tk.Label(
-            self.search_frame, text="Search (Name or ID):", font=("Segoe UI", 10), bg="#ecf0f1", fg="#2c3e50"
+            self.search_frame,
+            text="Search (Name or ID):",
+            font=("Segoe UI", 10),
+            bg="#ecf0f1",
+            fg="#2c3e50",
         )
         self.search_label.pack(side=tk.LEFT, padx=(0, 5))
 
-        self.search_entry = tk.Entry(self.search_frame, textvariable=self.search_var, font=("Segoe UI", 10), width=30)
+        self.search_entry = tk.Entry(
+            self.search_frame, textvariable=self.search_var, font=("Segoe UI", 10), width=30
+        )
         self.search_entry.pack(side=tk.LEFT)
         self.search_entry.bind("<KeyRelease>", self.live_search)
 
         cols = ("Code", "Name", "CW1", "CW2", "CW3", "Exam", "Total", "Percent", "Grade")
-        self.tree = ttk.Treeview(self.content_frame, columns=cols, show="headings", selectmode="browse")
+        self.tree = ttk.Treeview(
+            self.content_frame, columns=cols, show="headings", selectmode="browse"
+        )
 
         headings = {
             "Code": "ID",
@@ -191,7 +273,9 @@ class StudentManagerApp:
         self.tree.tag_configure("high", background="#d4efdf")
         self.tree.tag_configure("low", background="#f5b7b1")
 
-        scrollbar = ttk.Scrollbar(self.content_frame, orient=tk.VERTICAL, command=self.tree.yview)
+        scrollbar = ttk.Scrollbar(
+            self.content_frame, orient=tk.VERTICAL, command=self.tree.yview
+        )
         self.tree.configure(yscroll=scrollbar.set)
         self.tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         scrollbar.place(relx=1.0, rely=0, relheight=1.0, anchor="ne")
@@ -247,7 +331,9 @@ class StudentManagerApp:
         count = len(data_list)
         if count:
             avg = sum(s["percent"] for s in data_list) / count
-            self.summary_label.configure(text=f"Total Students: {count} | Class Average Percentage: {avg:.2f}%")
+            self.summary_label.configure(
+                text=f"Total Students: {count} | Class Average Percentage: {avg:.2f}%"
+            )
         else:
             self.summary_label.configure(text="No records found.")
 
@@ -257,7 +343,9 @@ class StudentManagerApp:
             self.populate_tree(self.students)
             return
         results = [
-            s for s in self.students if q in s["name"].lower() or q in str(s["code"]).lower()
+            s
+            for s in self.students
+            if q in s["name"].lower() or q in str(s["code"]).lower()
         ]
         self.populate_tree(results)
 
@@ -288,6 +376,9 @@ class StudentManagerApp:
         win = tk.Toplevel(self.root)
         win.title("Sort Records")
         win.geometry("500x600")
+        
+        self.set_window_icon(win)
+        
         self.apply_popup_theme(win)
 
         tk.Label(win, text="Sort By:", font=("Segoe UI", 12, "bold")).pack(pady=(15, 5))
@@ -303,12 +394,18 @@ class StudentManagerApp:
             ("Percent", "percent"),
         ]
         for text, v in opts:
-            tk.Radiobutton(win, text=text, variable=key_var, value=v).pack(anchor=tk.W, padx=50)
+            tk.Radiobutton(win, text=text, variable=key_var, value=v).pack(
+                anchor=tk.W, padx=50
+            )
 
         tk.Label(win, text="Order:", font=("Segoe UI", 12, "bold")).pack(pady=10)
         order_var = tk.StringVar(value="desc")
-        tk.Radiobutton(win, text="Ascending", variable=order_var, value="asc").pack(anchor=tk.W, padx=50)
-        tk.Radiobutton(win, text="Descending", variable=order_var, value="desc").pack(anchor=tk.W, padx=50)
+        tk.Radiobutton(win, text="Ascending", variable=order_var, value="asc").pack(
+            anchor=tk.W, padx=50
+        )
+        tk.Radiobutton(win, text="Descending", variable=order_var, value="desc").pack(
+            anchor=tk.W, padx=50
+        )
 
         def apply_sort():
             key = key_var.get()
@@ -321,12 +418,17 @@ class StudentManagerApp:
             self.populate_tree(sorted_list)
             win.destroy()
 
-        tk.Button(win, text="Apply Sort", command=apply_sort, height=2, width=15).pack(pady=20)
+        tk.Button(win, text="Apply Sort", command=apply_sort, height=2, width=15).pack(
+            pady=20
+        )
 
     def add_student_dialog(self):
         win = tk.Toplevel(self.root)
         win.title("Add Record")
         win.geometry("300x400")
+        
+        self.set_window_icon(win)
+        
         self.apply_popup_theme(win)
 
         fields = [
@@ -409,6 +511,9 @@ class StudentManagerApp:
         win = tk.Toplevel(self.root)
         win.title("Update Record")
         win.geometry("300x400")
+        
+        self.set_window_icon(win)
+        
         self.apply_popup_theme(win)
 
         entries = {}
@@ -473,8 +578,8 @@ class StudentManagerApp:
             entry_fg = "#e6e6e6"
             tree_bg = "#0f151a"
             tree_fg = "#e6e6e6"
-            tree_head_bg = "#161b22"
-            tree_head_fg = "#e6e6e6"
+            head_bg = "#161b22"
+            head_fg = "#e6e6e6"
         else:
             root_bg = "#ecf0f1"
             sidebar_bg = "#2c3e50"
@@ -486,19 +591,29 @@ class StudentManagerApp:
             entry_fg = "black"
             tree_bg = "white"
             tree_fg = "black"
-            tree_head_bg = "#d0d0d0"
-            tree_head_fg = "black"
+            head_bg = "#d0d0d0"
+            head_fg = "black"
 
         self.root.configure(bg=root_bg)
+
         self.control_frame.configure(bg=sidebar_bg)
         for child in self.control_frame.winfo_children():
             if isinstance(child, tk.Label):
                 child.configure(bg=sidebar_bg, fg=text_main)
             elif isinstance(child, tk.Button):
-                child.configure(bg=btn_bg, fg="white")
+                child.configure(
+                    bg=btn_bg,
+                    fg="white",
+                    activebackground="#1abc9c",
+                    activeforeground="white",
+                )
 
         self.content_frame.configure(bg=content_bg)
+        
+        self.top_header_frame.configure(bg=content_bg)
         self.header_label.configure(bg=content_bg, fg=text_main)
+        self.logo_label.configure(bg=content_bg)
+
         self.search_frame.configure(bg=content_bg)
         self.search_label.configure(bg=content_bg, fg=text_main)
         self.search_entry.configure(bg=entry_bg, fg=entry_fg, insertbackground=entry_fg)
@@ -507,8 +622,32 @@ class StudentManagerApp:
         self.summary_label.configure(bg=footer_bg, fg=text_main)
 
         style = ttk.Style()
-        style.configure("Treeview", background=tree_bg, foreground=tree_fg, fieldbackground=tree_bg)
-        style.configure("Treeview.Heading", background=tree_head_bg, foreground=tree_head_fg)
+        style.theme_use("default")
+
+        style.configure(
+            "Custom.Treeview",
+            background=tree_bg,
+            foreground=tree_fg,
+            fieldbackground=tree_bg,
+            bordercolor=tree_bg,
+            rowheight=25,
+        )
+
+        style.configure(
+            "Custom.Treeview.Heading",
+            background=head_bg,
+            foreground=head_fg,
+            relief="flat",
+            font=("Segoe UI", 10, "bold"),
+        )
+
+        style.map(
+            "Custom.Treeview.Heading",
+            background=[("active", head_bg)],
+            foreground=[("active", head_fg)],
+        )
+
+        self.tree.configure(style="Custom.Treeview")
 
         self.tree.tag_configure(
             "high",
@@ -524,6 +663,7 @@ class StudentManagerApp:
     def auto_save(self):
         self.save_data()
         self.root.after(10000, self.auto_save)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
