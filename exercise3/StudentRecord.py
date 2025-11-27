@@ -47,31 +47,24 @@ class StudentManagerApp:
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def load_resources(self):
-        """Loads images once to be reused across all windows."""
         try:
             if os.path.exists(LOGO_FILE):
-               
                 pil_image = Image.open(LOGO_FILE)
-                
-               
                 self.icon_image = ImageTk.PhotoImage(pil_image)
                 self.set_window_icon(self.root)
 
-                
                 base_height = 100
                 w_percent = (base_height / float(pil_image.size[1]))
                 w_size = int((float(pil_image.size[0]) * float(w_percent)))
                 
                 resized_pil = pil_image.resize((w_size, base_height), Image.LANCZOS)
                 self.header_logo_image = ImageTk.PhotoImage(resized_pil)
-                
             else:
                 print(f"Logo not found at: {LOGO_FILE}")
         except Exception as e:
             print(f"Error loading logo: {e}")
 
     def set_window_icon(self, window):
-        """Helper to apply the logo to any window passed to it."""
         if self.icon_image:
             window.iconphoto(False, self.icon_image)
 
@@ -224,7 +217,6 @@ class StudentManagerApp:
         self.header_label.pack(side=tk.LEFT, anchor="w")
 
         self.logo_label = tk.Label(self.top_header_frame, bg="#ecf0f1")
-        
         self.logo_label.pack(side=tk.RIGHT, anchor="e", padx=(0, 40))
         
         if self.header_logo_image:
@@ -358,7 +350,7 @@ class StudentManagerApp:
         if not q:
             return
         q = q.lower()
-        results = [s for s in self.students if q in s["name"].lower() or q in s["code"]]
+        results = [s for s in self.students if q in s["name"].lower() or q in str(s["code"]).lower()]
         if results:
             self.populate_tree(results)
         else:
@@ -371,6 +363,19 @@ class StudentManagerApp:
     def show_lowest(self):
         if self.students:
             self.populate_tree([min(self.students, key=lambda x: x["total"])])
+    def delete_student(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Error", "Select a student.")
+            return
+
+        item = self.tree.item(sel)
+        code = str(item["values"][0])
+
+        if messagebox.askyesno("Confirm", "Delete this student?"):
+            self.students = [s for s in self.students if str(s["code"]) != code]
+            self.save_data()
+            self.view_all_students()
 
     def sort_menu(self):
         win = tk.Toplevel(self.root)
@@ -378,7 +383,6 @@ class StudentManagerApp:
         win.geometry("500x600")
         
         self.set_window_icon(win)
-        
         self.apply_popup_theme(win)
 
         tk.Label(win, text="Sort By:", font=("Segoe UI", 12, "bold")).pack(pady=(15, 5))
@@ -394,18 +398,12 @@ class StudentManagerApp:
             ("Percent", "percent"),
         ]
         for text, v in opts:
-            tk.Radiobutton(win, text=text, variable=key_var, value=v).pack(
-                anchor=tk.W, padx=50
-            )
+            tk.Radiobutton(win, text=text, variable=key_var, value=v).pack(anchor=tk.W, padx=50)
 
         tk.Label(win, text="Order:", font=("Segoe UI", 12, "bold")).pack(pady=10)
         order_var = tk.StringVar(value="desc")
-        tk.Radiobutton(win, text="Ascending", variable=order_var, value="asc").pack(
-            anchor=tk.W, padx=50
-        )
-        tk.Radiobutton(win, text="Descending", variable=order_var, value="desc").pack(
-            anchor=tk.W, padx=50
-        )
+        tk.Radiobutton(win, text="Ascending", variable=order_var, value="asc").pack(anchor=tk.W, padx=50)
+        tk.Radiobutton(win, text="Descending", variable=order_var, value="desc").pack(anchor=tk.W, padx=50)
 
         def apply_sort():
             key = key_var.get()
@@ -418,9 +416,7 @@ class StudentManagerApp:
             self.populate_tree(sorted_list)
             win.destroy()
 
-        tk.Button(win, text="Apply Sort", command=apply_sort, height=2, width=15).pack(
-            pady=20
-        )
+        tk.Button(win, text="Apply Sort", command=apply_sort, height=2, width=15).pack(pady=20)
 
     def add_student_dialog(self):
         win = tk.Toplevel(self.root)
@@ -428,7 +424,6 @@ class StudentManagerApp:
         win.geometry("300x400")
         
         self.set_window_icon(win)
-        
         self.apply_popup_theme(win)
 
         fields = [
@@ -486,18 +481,6 @@ class StudentManagerApp:
 
         tk.Button(win, text="Save Record", command=save_new).pack(pady=15)
 
-    def delete_student(self):
-        sel = self.tree.selection()
-        if not sel:
-            messagebox.showwarning("Error", "Select a student.")
-            return
-        item = self.tree.item(sel)
-        code = item["values"][0]
-        if messagebox.askyesno("Confirm", "Delete this student?"):
-            self.students = [s for s in self.students if s["code"] != code]
-            self.save_data()
-            self.view_all_students()
-
     def update_student_dialog(self):
         sel = self.tree.selection()
         if not sel:
@@ -505,15 +488,18 @@ class StudentManagerApp:
             return
 
         item = self.tree.item(sel)
-        code = item["values"][0]
-        s = next((x for x in self.students if x["code"] == code), None)
+        code = str(item["values"][0])
+
+        s = next((x for x in self.students if str(x["code"]) == code), None)
+        if not s:
+            messagebox.showerror("Error", "Record not found.")
+            return
 
         win = tk.Toplevel(self.root)
         win.title("Update Record")
         win.geometry("300x400")
         
         self.set_window_icon(win)
-        
         self.apply_popup_theme(win)
 
         entries = {}
@@ -533,8 +519,8 @@ class StudentManagerApp:
 
         def update_record():
             try:
-                new_code = entries["Code"].get()
-                new_name = entries["Name"].get()
+                new_code = entries["Code"].get().strip()
+                new_name = entries["Name"].get().strip()
                 cw1 = int(entries["CW1"].get())
                 cw2 = int(entries["CW2"].get())
                 cw3 = int(entries["CW3"].get())
@@ -559,6 +545,7 @@ class StudentManagerApp:
                 self.save_data()
                 self.view_all_students()
                 win.destroy()
+
             except Exception as e:
                 messagebox.showerror("Error", str(e))
 
